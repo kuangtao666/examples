@@ -1,0 +1,48 @@
+# Obtain an OTP token (and send OTP)
+POST http://localhost:8080/oauth/token
+Authorization: Basic client secret
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&username=john&password=pass
+
+> {%
+  var otpToken = response.body.mfa_token;
+  client.global.set("otpToken", otpToken);
+
+  client.test("Obtain a short-living token for OTP", function() {
+    client.assert(response.status === 403, "Response status is 403");
+  });
+%}
+
+###
+
+# Exchange OTP for a regular tokens
+POST http://localhost:8080/oauth/token
+Authorization: Basic client secret
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=mfa&mfa_token={{otpToken}}&mfa_code=142473
+
+> {%
+  var accessToken = response.body.access_token;
+  client.global.set("accessToken", accessToken);
+
+  client.test("Exchange OTP for regular tokens", function() {
+    client.assert(response.status === 200, "Response status is 200");
+  });
+%}
+
+###
+
+# Get some resources
+GET http://localhost:8080/hello/init
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+> {%
+  client.test("Get some resources", function() {
+    client.assert(response.status === 200, "Response status is 200");
+  });
+%}
+
+###
